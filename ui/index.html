@@ -298,17 +298,60 @@
       } catch (e) {
         // API not running - use demo mode
         if (agents.size === 0) {
-          // Add demo agents
-          addAgentNode({ id: 'demo-1', reputation: 95, capability: 'text-generation' });
-          addAgentNode({ id: 'demo-2', reputation: 88, capability: 'image-generation' });
-          addAgentNode({ id: 'demo-3', reputation: 72, capability: 'code-generation' });
+          // Add demo agents with realistic locations
+          const demoAgents = [
+            { id: 'alpha-1', name: 'Alpha', reputation: 95, capability: 'text-generation', lat: 37.77, lon: -122.41 },  // SF
+            { id: 'beta-2', name: 'Beta', reputation: 88, capability: 'image-generation', lat: 40.71, lon: -74.00 },   // NYC
+            { id: 'gamma-3', name: 'Gamma', reputation: 72, capability: 'code-generation', lat: 51.50, lon: -0.12 },    // London
+            { id: 'delta-4', name: 'Delta', reputation: 91, capability: 'data-analysis', lat: 48.85, lon: 2.35 },      // Paris
+            { id: 'epsilon-5', name: 'Epsilon', reputation: 84, capability: 'translation', lat: 35.67, lon: 139.65 }   // Tokyo
+          ];
           
-          // Demo arcs
-          setTimeout(() => {
-            const a1 = agents.get('demo-1');
-            const a2 = agents.get('demo-2');
-            drawArc(a1, a2);
-          }, 2000);
+          demoAgents.forEach(agent => {
+            const pos = latLonToVector3(agent.lat, agent.lon, GLOBE_RADIUS + 0.1);
+            const geometry = new THREE.SphereGeometry(NODE_RADIUS, 16, 16);
+            const hue = (agent.reputation / 100);
+            const color = new THREE.Color().setHSL(hue * 0.3, 0.9, 0.5);
+            const material = new THREE.MeshPhongMaterial({ 
+              color, emissive: color, emissiveIntensity: 0.3
+            });
+            const node = new THREE.Mesh(geometry, material);
+            node.position.copy(pos);
+            node.userData = { agent, lat: agent.lat, lon: agent.lon };
+            
+            const haloGeometry = new THREE.RingGeometry(NODE_RADIUS * 1.5, NODE_RADIUS * 2.5, 32);
+            const haloMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
+            const halo = new THREE.Mesh(haloGeometry, haloMaterial);
+            halo.position.copy(pos);
+            halo.lookAt(new THREE.Vector3(0, 0, 0));
+            
+            scene.add(node);
+            scene.add(halo);
+            nodes.push(node, halo);
+            agents.set(agent.id, { node, halo, lat: agent.lat, lon: agent.lon, color });
+          });
+          
+          document.getElementById('agent-count').textContent = agents.size;
+          
+          // Demo events
+          const demoEvents = [
+            { type: 'EscrowCreated', from: 'alpha-1', to: 'beta-2', amount: '5 USDC' },
+            { type: 'Delivered', from: 'gamma-3', to: 'delta-4', amount: '3 USDC' },
+            { type: 'Verified', from: 'alpha-1', to: 'beta-2', amount: '5 USDC' },
+            { type: 'Released', from: 'beta-2', to: 'epsilon-5', amount: '2 USDC' },
+            { type: 'EscrowCreated', from: 'delta-4', to: 'gamma-3', amount: '8 USDC' }
+          ];
+          
+          demoEvents.forEach((evt, i) => {
+            setTimeout(() => {
+              const from = agents.get(evt.from);
+              const to = agents.get(evt.to);
+              if (from && to) {
+                drawArc(from, to);
+                addEventToPanel({ type: evt.type, amount: evt.amount, timestamp: Date.now() });
+              }
+            }, i * 1500);
+          });
         }
       }
     }
