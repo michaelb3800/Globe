@@ -30,6 +30,44 @@ router.get('/recent', (req: Request, res: Response) => {
   });
 });
 
+// GET /events/feed - Event feed indexer skeleton (mocked)
+// Returns events in spec schema format (can be swapped to chain logs later)
+router.get('/feed', (req: Request, res: Response) => {
+  // TODO: Replace with chain log indexer when contract is deployed
+  // For now, return mocked events from database
+  const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+  
+  const events = all(`
+    SELECT * FROM events 
+    ORDER BY ts DESC 
+    LIMIT ?
+  `, [limit]);
+
+  // Return in spec schema format
+  res.json({
+    feed: (events as any[]).map(e => ({
+      id: e.event_id,
+      type: e.type,
+      escrowId: e.escrow_id,
+      provider: e.agent_a,
+      requester: e.agent_b,
+      amount: e.amount,
+      capability: e.capability,
+      status: e.status || 'completed',
+      location: {
+        from: { lat: e.lat_a, lon: e.lon_a },
+        to: { lat: e.lat_b, lon: e.lon_b }
+      },
+      txHash: e.tx_hash,
+      timestamp: e.ts,
+      blockNumber: e.block_number || null,
+      blockHash: e.block_hash || null
+    })),
+    source: 'mocked',
+    note: 'Replace with chain log indexer after deployment'
+  }));
+});
+
 // GET /events/escrow/:escrowId
 router.get('/escrow/:escrowId', (req: Request, res: Response) => {
   const events = all(`

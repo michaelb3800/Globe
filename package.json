@@ -1,0 +1,22 @@
+{
+  "name": "globe-protocol",
+  "version": "1.0.0",
+  "description": "Globe Protocol - AI Agent Escrow System",
+  "scripts": {
+    "deploy:base-sepolia": "cd contracts && forge script script/Deploy.s.sol --rpc-url baseSepolia --broadcast --verify",
+    "verify:base-sepolia": "cd contracts && forge verify-contract --chain 84532",
+    "deploy:local": "cd contracts && forge script script/Deploy.s.sol --rpc-url localhost --broadcast",
+    "test": "cd contracts && forge test",
+    "build": "cd contracts && forge build",
+    "cli:requester": "npx hardhat run cli/requester.ts --network localhost",
+    "cli:provider": "npx hardhat run cli/provider.ts --network localhost",
+    "demo-proof": "npx ts-node scripts/demo-proof.ts",
+    "api": "cd api && npm run dev",
+    "ui": "npx serve ui"
+  },
+  "devDependencies": {
+    "hardhat": "^2.19.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.3.0"
+  }
+}
