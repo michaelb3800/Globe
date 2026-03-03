@@ -5,6 +5,34 @@ import { RegisterAgentSchema, UpdateAgentSchema, SignedPayloadSchema } from '../
 
 const router = Router();
 
+// DEMO MODE: Simple registration without signature
+router.post('/register-demo', (req: Request, res: Response) => {
+  try {
+    const { agentId, wallet, name, capabilities, regionLat, regionLon } = req.body;
+    
+    if (!agentId || !wallet) {
+      return res.status(400).json({ error: 'agentId and wallet required' });
+    }
+
+    const existing = get('SELECT agent_id FROM agents WHERE agent_id = ? OR wallet = ?', [agentId, wallet]);
+    if (existing) {
+      return res.json({ success: true, agent: { agentId, wallet, name }, message: 'Agent already exists' });
+    }
+
+    const lat = regionLat ?? (Math.random() * 180 - 90);
+    const lon = regionLon ?? (Math.random() * 360 - 180);
+
+    run(`
+      INSERT INTO agents (agent_id, wallet, name, capabilities, region_lat, region_lon, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    `, [agentId, wallet, name || 'Demo Agent', JSON.stringify(capabilities || []), lat, lon]);
+
+    res.json({ success: true, agent: { agentId, wallet, name: name || 'Demo Agent' } });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /agents/register
 router.post('/register', async (req: Request, res: Response) => {
   try {

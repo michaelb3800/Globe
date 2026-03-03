@@ -5,6 +5,31 @@ import { CreateServiceSchema, SignedPayloadSchema } from '../models/types.js';
 
 const router = Router();
 
+// DEMO MODE: Create service without signature
+router.post('/demo', (req: Request, res: Response) => {
+  try {
+    const { serviceId, agentId, capability, description, priceMin, priceMax } = req.body;
+    
+    if (!serviceId || !agentId || !capability) {
+      return res.status(400).json({ error: 'serviceId, agentId, and capability required' });
+    }
+
+    const agent = get('SELECT agent_id FROM agents WHERE agent_id = ?', [agentId]);
+    if (!agent) {
+      return res.status(404).json({ error: 'Agent not found. Register agent first.' });
+    }
+
+    run(`
+      INSERT INTO services (service_id, agent_id, capability, description, price_min, price_max, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    `, [serviceId, agentId, capability, description || null, priceMin || null, priceMax || null]);
+
+    res.json({ success: true, service: { serviceId, agentId, capability } });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /services
 router.post('/', async (req: Request, res: Response) => {
   try {
