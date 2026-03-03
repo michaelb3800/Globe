@@ -2,28 +2,31 @@
 
 Last updated: 2026-03-02
 
-## Status: G1_CONTRACT - AWAITING APPROVAL
+## Status: G1_CONTRACT - Remediation PR Open
 
 ### Completed
-- [x] T1.1 Escrow Contract implementation (f324718)
-- [x] 11/11 tests passing
-- [x] Contract Review Packet posted to #globe-contract-review
-- [x] Security features documented
+- [x] T1.1 Escrow Contract implementation
+- [x] Remediation PR #2 - Fixes applied:
+  - Cancelled event
+  - cancelMutual() function
+  - Pull-based withdrawal (withdraw/withdrawRefund)
+  - GRACE_PERIOD (24h)
+- [x] 20 tests passing
 
-### Awaiting
-- [ ] Agent A written approval for testnet deploy
+### In Progress
+- [ ] Fix remaining 4 edge case tests
+- [ ] Agent A review of PR #2
 
 ### Next Steps (after approval)
+- [ ] Merge PR #2
 - [ ] T1.3 Deploy to Base Sepolia
-- [ ] Verify source on explorer
-- [ ] Record tx hash in DEMO_PROOF.md
 
 ## Milestone Gates
 
 | Gate | Status | Notes |
 |------|--------|-------|
-| G1_CONTRACT | ✅ Ready for Review | 11/11 tests, packet posted |
-| G2_TESTNET_DEPLOY | ⏳ Blocked | Waiting on Agent A approval |
+| G1_CONTRACT | 🔄 In Remediation | PR #2 open |
+| G2_TESTNET_DEPLOY | ⏳ Blocked | Waiting on G1 |
 | G3_END_TO_END_CLI | ⏳ Blocked | Waiting on G2 |
 | G4_UI_GLOBE | ⏳ Blocked | Waiting on G3 |
 
