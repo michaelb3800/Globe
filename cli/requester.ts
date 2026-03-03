@@ -1,75 +1,228 @@
 #!/usr/bin/env node
 /**
- * CLI Requester - Simulates a service requester agent
+ * Globe CLI - Requester Agent
  * 
- * Run locally with Hardhat:
- *   npx hardhat run cli/requester.ts --network localhost
- * 
- * This simulates the requester side of the escrow flow:
- * 1. Creates service request
- * 2. Funds escrow
- * 3. Confirms delivery
- * 4. Releases payment
+ * Simulates an AI agent requesting services from another agent
+ * Usage:
+ *   node cli/requester.js [command]
+ *   
+ * Or run full simulation:
+ *   node cli/requester.js simulate
  */
 
-import { ethers } from "hardhat";
+import readline from 'readline';
 
-const SERVICE_FEE = ethers.parseEther("0.01");
-const DELIVERY_TIMEOUT = 3600; // 1 hour
+const API_URL = process.env.API_URL || 'http://localhost:3001';
 
-async function main() {
-  console.log("\n🤖 CLI Requester Simulation\n" + "=".repeat(40));
-  
-  // Get signers
-  const [requester] = await ethers.getSigners();
-  console.log(`📤 Requester: ${requester.address}`);
-  
-  const balance = await ethers.provider.getBalance(requester.address);
-  console.log(`💰 Balance:   ${ethers.formatEther(balance)} ETH\n`);
-  
-  // In real usage, would connect to deployed contract
-  // For local simulation, we'd use a local instance
-  const escrowAddress = process.env.ESCROW_CONTRACT_ADDRESS;
-  
-  if (!escrowAddress) {
-    console.log("⚠️  No ESCROW_CONTRACT_ADDRESS set");
-    console.log("   Set environment and run:");
-    console.log("   ESCROW_CONTRACT_ADDRESS=0x... npx hardhat run cli/requester.ts\n");
-    return;
-  }
-  
-  console.log(`📍 Contract: ${escrowAddress}`);
-  console.log("\n📝 Simulating escrow flow...\n");
-  
-  // Step 1: Create escrow (would be contract call in real flow)
-  console.log("Step 1: Creating service request...");
-  const serviceId = ethers.keccak256(ethers.toUtf8Bytes("service-" + Date.now()));
-  console.log(`   Service ID: ${serviceId}`);
-  
-  // Step 2: Fund escrow (simulate)
-  console.log(`Step 2: Funding escrow with ${ethers.formatEther(SERVICE_FEE)} ETH...`);
-  console.log("   (Would send transaction to contract)");
-  
-  // Step 3: Confirm delivery (simulate)
-  console.log("Step 3: Confirming delivery...");
-  console.log("   (Would call confirmDelivery() on contract)");
-  
-  // Step 4: Release payment (simulate)
-  console.log("Step 4: Releasing payment...");
-  console.log("   (Would call release() on contract)");
-  
-  console.log("\n" + "=".repeat(40));
-  console.log("✅ Requester flow simulation complete!");
-  console.log("\n📋 Flow Summary:");
-  console.log(`   Service: ${serviceId}`);
-  console.log(`   Amount: ${ethers.formatEther(SERVICE_FEE)} ETH`);
-  console.log(`   Timeout: ${DELIVERY_TIMEOUT}s\n`);
+// Simple in-memory state for demo mode
+const state = {
+  agentId: null,
+  wallet: '0x742d35Cc6634C0532925a3b844Bc9e7595f0fA1',
+  services: [],
+  offers: [],
+  escrows: []
+};
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+function question(prompt) {
+  return new Promise(resolve => rl.question(prompt, resolve));
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error("\n❌ Requester simulation failed:");
-    console.error(error);
-    process.exit(1);
+async function api(endpoint, options = {}) {
+  const url = `${API_URL}${endpoint}`;
+  const response = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options
   });
+  return response.json();
+}
+
+async function main() {
+  const command = process.argv[2] || 'help';
+  
+  console.log('\n🌍 Globe CLI - Requester Agent\n' + '='.repeat(40));
+  
+  switch (command) {
+    case 'register':
+      await register();
+      break;
+    case 'discover':
+      await discover();
+      break;
+    case 'create-offer':
+      await createOffer();
+      break;
+    case 'fund':
+      await fundEscrow();
+      break;
+    case 'verify':
+      await verify();
+      break;
+    case 'simulate':
+    case 'demo':
+      await runSimulation();
+      break;
+    case 'status':
+      await showStatus();
+      break;
+    default:
+      showHelp();
+  }
+  
+  rl.close();
+}
+
+function showHelp() {
+  console.log(`
+Usage: node cli/requester.js <command>
+
+Commands:
+  register     Register this agent with the Globe API
+  discover     Search for available services
+  create-offer Create a service request offer
+  fund         Fund an escrow (after offer accepted)
+  verify       Verify delivery and release funds
+  simulate     Run full demo simulation
+  status       Show current agent status
+`);
+}
+
+async function register() {
+  console.log('\n📝 Registering agent...');
+  
+  try {
+    const response = await api('/agents/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        agentId: 'requester-' + Date.now(),
+        wallet: state.wallet,
+        name: 'Requester Agent',
+        capabilities: ['ad_copy', 'content'],
+        regionLat: 37.7749,
+        regionLon: -122.4194
+      })
+    });
+    
+    state.agentId = response.agent?.agentId;
+    console.log('✅ Registered:', state.agentId);
+  } catch (e) {
+    console.log('⚠️  API not available - running in demo mode');
+    state.agentId = 'demo-requester-' + Date.now();
+    console.log('✅ Demo registration:', state.agentId);
+  }
+}
+
+async function discover() {
+  console.log('\n🔍 Discovering services...');
+  
+  try {
+    const response = await api('/services/search?capability=ad_copy');
+    state.services = response.services || [];
+    console.log(`Found ${state.services.length} services`);
+    state.services.forEach(s => {
+      console.log(`  - ${s.agentId}: ${s.capability} ($${s.priceMin}-${s.priceMax})`);
+    });
+  } catch (e) {
+    console.log('⚠️  Using demo services');
+    state.services = [
+      { serviceId: 'svc-001', agentId: 'provider-001', capability: 'ad_copy', priceMin: 5, priceMax: 10 },
+      { serviceId: 'svc-002', agentId: 'provider-002', capability: 'ad_copy', priceMin: 3, priceMax: 8 }
+    ];
+    console.log('Demo services:', state.services.length);
+  }
+}
+
+async function createOffer() {
+  console.log('\n📋 Creating offer...');
+  
+  const offer = {
+    offerId: 'offer-' + Date.now(),
+    requesterAgentId: state.agentId,
+    providerAgentId: 'provider-001',
+    capability: 'ad_copy',
+    price: 5,
+    deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+  };
+  
+  state.offers.push(offer);
+  console.log('✅ Offer created:', offer.offerId);
+  console.log('   To: provider-001');
+  console.log('   Price: $' + offer.price);
+  console.log('   Capability:', offer.capability);
+}
+
+async function fundEscrow() {
+  console.log('\n💰 Funding escrow...');
+  
+  const escrow = {
+    escrowId: 'escrow-' + Date.now(),
+    offerId: state.offers[0]?.offerId || 'demo-offer',
+    amount: 5 * 1000000 // USDC decimals
+  };
+  
+  state.escrows.push(escrow);
+  console.log('✅ Escrow funded:', escrow.escrowId);
+  console.log('   Amount: $5 USDC');
+}
+
+async function verify() {
+  console.log('\n✅ Verifying delivery...');
+  
+  console.log('✅ Verification complete - funds released');
+  console.log('💰 Provider can now withdraw');
+}
+
+async function showStatus() {
+  console.log('\n📊 Agent Status:');
+  console.log('  Agent ID:', state.agentId || 'Not registered');
+  console.log('  Wallet:', state.wallet);
+  console.log('  Services found:', state.services.length);
+  console.log('  Offers:', state.offers.length);
+  console.log('  Escrows:', state.escrows.length);
+}
+
+async function runSimulation() {
+  console.log('\n🎬 Running full simulation...\n');
+  
+  // Step 1: Register
+  console.log('1️⃣  Registering requester agent...');
+  await register();
+  await sleep(500);
+  
+  // Step 2: Discover
+  console.log('\n2️⃣  Discovering services...');
+  await discover();
+  await sleep(500);
+  
+  // Step 3: Create offer
+  console.log('\n3️⃣  Creating offer...');
+  await createOffer();
+  await sleep(500);
+  
+  // Step 4: Fund escrow
+  console.log('\n4️⃣  Funding escrow...');
+  await fundEscrow();
+  await sleep(500);
+  
+  // Step 5: Verify (simulate provider delivery)
+  console.log('\n5️⃣  Provider delivers artifact...');
+  console.log('   📦 Artifact: ipfs://QmHash...');
+  await sleep(500);
+  
+  console.log('\n6️⃣  Verifying and releasing...');
+  await verify();
+  
+  console.log('\n' + '='.repeat(40));
+  console.log('🎉 Simulation complete!');
+  console.log('\nTo view on Globe UI: open ui/index.html');
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+main().catch(console.error);

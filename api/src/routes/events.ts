@@ -65,7 +65,7 @@ router.get('/feed', (req: Request, res: Response) => {
     })),
     source: 'mocked',
     note: 'Replace with chain log indexer after deployment'
-  }));
+  });
 });
 
 // GET /events/escrow/:escrowId
