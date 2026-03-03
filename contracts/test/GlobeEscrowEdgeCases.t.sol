@@ -115,8 +115,8 @@ contract GlobeEscrowEdgeCaseTest is Test {
         vm.prank(requester);
         escrow.fundEscrow(escrowId);
         
-        // Warp past deadline
-        vm.warp(block.timestamp + 2 days);
+        // Warp past deadline + grace period
+        vm.warp(block.timestamp + 1 days + 24 hours + 1);
         
         vm.prank(provider);
         vm.expectRevert("Escrow expired");
