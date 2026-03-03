@@ -1,6 +1,6 @@
 # MEMORY.md - Globe Protocol
 
-_Last updated: 2026-03-02_
+_Last updated: 2026-03-03_
 
 ## Current Project: Globe Protocol v0.1
 Building autonomous AI-to-AI commerce infrastructure.
@@ -12,14 +12,18 @@ Building autonomous AI-to-AI commerce infrastructure.
 - Database: SQLite (MVP)
 
 ### Milestone Gates
-- G1_CONTRACT: Ready for review
-- G2_TESTNET_DEPLOY: Blocked on G1
+- G1_CONTRACT: ✅ Approved (escrow contract with pull-based withdrawal, cancelMutual, grace period)
+- G2_TESTNET_DEPLOY: 🔄 In Progress (needs PRIVATE_KEY + USDC_ADDRESS)
 - G3_END_TO_END_CLI: Blocked on G2
 - G4_UI_GLOBE: Blocked on G3
 
+### Latest
+- Main branch: f03c0b0
+- Remediation PR #2 merged
+- Deployment scripts ready
+
 ### Repo
 - https://github.com/michaelb3800/Globe
-- Commit: f324718
 
 ---
 
