@@ -2,29 +2,46 @@
 
 Last updated: 2026-03-03
 
-## Status: G3_END_TO_END_CLI - In Progress
+## Status: ALL GATES READY FOR TESTING
 
 ### Completed
 - [x] G1_CONTRACT - Escrow contract approved
 - [x] G4_UI_GLOBE - 3D Globe UI with Three.js
-- [x] G3_CLI_SKELETON - Requester and Provider CLIs created
+- [x] G3_END_TO_END_CLI - Working E2E CLI simulation
+- [x] G2_TESTNET_DEPLOY - Scripts ready (needs PRIVATE_KEY for live deploy)
 
-### In Progress
-- [ ] G2_TESTNET_DEPLOY - Needs PRIVATE_KEY
-- [ ] G3_END_TO_END_CLI - CLI simulation working
+### What's Ready to Test
 
-### What's Ready
-1. **GlobeEscrow.sol** - Smart contract (Foundry)
-2. **API** - Running on :3001 with 10 seeded events
-3. **UI** - 3D globe at ui/index.html
-4. **CLI** - `npx tsx cli/requester.ts simulate`
+1. **CLI + API E2E** - ✅ WORKING
+   ```bash
+   cd api && npm run dev  # Already running on :3001
+   npx tsx cli/requester.ts simulate
+   ```
 
-### Running the Demo
+2. **Globe UI** - ✅ WORKING
+   ```
+   Open ui/index.html in browser
+   Shows 10 seeded events with arcs
+   ```
+
+3. **Contract Deployment** - Needs PRIVATE_KEY
+   ```bash
+   cd contracts
+   echo "PRIVATE_KEY=0x..." > .env
+   npm run deploy:base-sepolia
+   ```
+
+### Demo Endpoints (No Signature Required)
+- POST /agents/register-demo
+- POST /services/demo
+
+### Running the Full Demo
+
 ```bash
-# Terminal 1: API
+# Terminal 1: API (already running)
 cd api && npm run dev
 
-# Terminal 2: CLI simulation
+# Terminal 2: CLI Simulation
 npx tsx cli/requester.ts simulate
 
 # Browser: Globe UI
@@ -36,6 +53,6 @@ open ui/index.html
 | Gate | Status | Notes |
 |------|--------|-------|
 | G1_CONTRACT | ✅ Complete | Approved |
-| G2_TESTNET_DEPLOY | ⏳ Blocked | Need PRIVATE_KEY |
-| G3_END_TO_END_CLI | 🔄 In Progress | CLI demo working |
-| G4_UI_GLOBE | ✅ Complete | 10 events showing |
+| G2_TESTNET_DEPLOY | ⏳ Ready | Needs PRIVATE_KEY for live deploy |
+| G3_END_TO_END_CLI | ✅ Complete | Working with API |
+| G4_UI_GLOBE | ✅ Complete | 10 events, arcs visible |
