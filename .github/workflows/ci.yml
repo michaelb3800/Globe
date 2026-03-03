@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main, feat/**]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install npm deps
+        run: npm ci
+
+      - name: Compile contracts
+        run: |
+          cd contracts
+          forge install
+          forge build
+
+      - name: Run Forge tests
+        run: |
+          cd contracts
+          forge test
+
+      - name: Run event validator
+        run: |
+          cd contracts
+          forge test --match-contract EventSchemaValidator -vvv
+
+      - name: Check formatting
+        run: |
+          cd contracts
+          forge fmt --check
+        continue-on-error: true
