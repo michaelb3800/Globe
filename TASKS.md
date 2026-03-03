@@ -6,8 +6,9 @@ Last updated: 2026-03-03
 
 ### Completed
 - [x] G1_CONTRACT - Escrow contract approved
-- [x] G4_UI_GLOBE - Globe UI created with demo data
-- [x] API seeded with 5 demo events (SF↔NYC, London↔Paris)
+- [x] G4_UI_GLOBE - Globe UI with demo mode (5 agents: SF, NYC, London, Paris, Tokyo)
+- [x] API running on localhost:3001
+- [x] Demo mode shows trade arcs between cities
 
 ### In Progress
 - [ ] G2_TESTNET_DEPLOY - Awaiting PRIVATE_KEY
