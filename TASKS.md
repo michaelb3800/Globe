@@ -2,46 +2,33 @@
 
 Last updated: 2026-03-02
 
-## Status: Phase 1 (Contracts) - Ready for Review
+## Status: G1_CONTRACT - AWAITING APPROVAL
 
 ### Completed
-- [x] T1.1 Escrow Contract implementation
-- [x] Unit tests (11/11 passing)
-- [x] Edge case tests
-- [x] Bytecode: ~10.7KB
+- [x] T1.1 Escrow Contract implementation (f324718)
+- [x] 11/11 tests passing
+- [x] Contract Review Packet posted to #globe-contract-review
+- [x] Security features documented
 
-### In Progress
-- [ ] T1.2 Contract Security Review (Agent A)
-- [ ] T1.3 Testnet Deployment
+### Awaiting
+- [ ] Agent A written approval for testnet deploy
 
-### Not Started
-- [ ] Phase 2: API + Registry Layer
-- [ ] Phase 3: Reputation Worker
-- [ ] Phase 4: CLI Demo
-- [ ] Phase 5: Globe UI
+### Next Steps (after approval)
+- [ ] T1.3 Deploy to Base Sepolia
+- [ ] Verify source on explorer
+- [ ] Record tx hash in DEMO_PROOF.md
 
 ## Milestone Gates
 
 | Gate | Status | Notes |
 |------|--------|-------|
-| G1_CONTRACT | 🔄 Ready for Review | Tests passing, ready for security review |
-| G2_TESTNET_DEPLOY | ⏳ Blocked | Waiting on G1 |
+| G1_CONTRACT | ✅ Ready for Review | 11/11 tests, packet posted |
+| G2_TESTNET_DEPLOY | ⏳ Blocked | Waiting on Agent A approval |
 | G3_END_TO_END_CLI | ⏳ Blocked | Waiting on G2 |
 | G4_UI_GLOBE | ⏳ Blocked | Waiting on G3 |
 
-## Daily Standup
-
-**Yesterday:**
-- Implemented GlobeEscrow.sol contract
-- Wrote 11 passing tests (3 core + 8 edge cases)
-- Set up Foundry environment
-
-**Today:**
-- Contract ready for Agent A review
-- Preparing deployment scripts
-
-**Blockers:**
-- None - waiting for contract review before proceeding
-
-**Risks:**
-- None identified
+## Non-Negotiables (Frozen)
+- ❌ No Phase 3 (Reputation Worker)
+- ❌ No UI work
+- ❌ No additional API expansion
+- ✅ Only contract review + testnet deploy

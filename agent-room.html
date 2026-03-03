@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Room - Fire Red</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    :root {
+      --bg-dark: #0f0f0f;
+      --bg-light: #f8f8f8;
+      --border-dark: #4a4a4a;
+      --border-light: #d8d8d8;
+      --text-dark: #333;
+      --text-light: #fff;
+      --hp-green: #38b764;
+      --hp-yellow: #f5ac0f;
+      --hp-red: #ce3b3b;
+      --panel-bg: #f8f8d8;
+      --panel-border: #a0a0a0;
+    }
+    
+    body {
+      font-family: 'Press Start 2P', monospace;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      padding: 20px;
+      image-rendering: pixelated;
+    }
+    
+    .gameboy-frame {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #c8c8c8;
+      border-radius: 10px 10px 40px 10px;
+      padding: 20px 20px 40px;
+      box-shadow: 
+        inset -5px -5px 10px rgba(0,0,0,0.2),
+        inset 5px 5px 10px rgba(255,255,255,0.5),
+        0 10px 30px rgba(0,0,0,0.5);
+    }
+    
+    .screen-border {
+      background: #888;
+      padding: 15px;
+      border-radius: 10px 10px 30px 10px;
+    }
+    
+    .screen {
+      background: #9bbc0f;
+      border: 4px solid #0f0f0f;
+      border-radius: 5px;
+      aspect-ratio: 240/160;
+      position: relative;
+      overflow: hidden;
+      image-rendering: pixelated;
+    }
+    
+    .screen::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.03) 2px,
+        rgba(0,0,0,0.03) 4px
+      );
+      pointer-events: none;
+    }
+    
+    .room-view {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 5px;
+      padding: 5px;
+      background: #306230;
+    }
+    
+    .agent-station {
+      background: linear-gradient(180deg, #9bbc0f 0%, #8bac0f 100%);
+      border: 3px solid #0f380f;
+      border-radius: 5px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .agent-station:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 15px rgba(155,188,15,0.5);
+    }
+    
+    .agent-station.active {
+      border-color: #fff;
+      animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 5px #fff; }
+      50% { box-shadow: 0 0 20px #fff; }
+    }
+    
+    .agent-sprite {
+      width: 40px;
+      height: 40px;
+      margin-bottom: 5px;
+      image-rendering: pixelated;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+    
+    .agent-name {
+      font-size: 6px;
+      color: #0f380f;
+      text-align: center;
+      text-shadow: 1px 1px 0 #fff;
+    }
+    
+    .agent-status {
+      font-size: 5px;
+      margin-top: 3px;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    
+    .status-idle { background: #38b764; color: #fff; }
+    .status-working { background: #f5ac0f; color: #000; }
+    .status-thinking { background: #ce3b3b; color: #fff; }
+    
+    .chat-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    
+    .chat-overlay.open { display: flex; }
+    
+    .chat-box {
+      width: 90%;
+      max-width: 700px;
+      max-height: 80vh;
+      background: #f8f8d8;
+      border: 4px solid #0f380f;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    .chat-header {
+      background: linear-gradient(180deg, #ce3b3b 0%, #a82626 100%);
+      color: #fff;
+      padding: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 8px;
+    }
+    
+    .close-btn {
+      background: #fff;
+      border: 2px solid #0f380f;
+      color: #0f380f;
+      width: 25px;
+      height: 25px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .close-btn:hover { background: #f0f0f0; }
+    
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 200px;
+      max-height: 400px;
+    }
+    
+    .message {
+      padding: 8px 10px;
+      border-radius: 5px;
+      font-size: 7px;
+      line-height: 1.6;
+      max-width: 85%;
+    }
+    
+    .message.agent {
+      background: #fff;
+      border: 2px solid #0f380f;
+      align-self: flex-start;
+    }
+    
+    .message.user {
+      background: #9bbc0f;
+      border: 2px solid #306230;
+      align-self: flex-end;
+    }
+    
+    .message.thinking {
+      background: #f5ac0f;
+      border: 2px solid #0f380f;
+      align-self: center;
+      animation: blink 0.5s infinite;
+    }
+    
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .chat-input-area {
+      display: flex;
+      border-top: 3px solid #0f380f;
+      background: #d8d8d8;
+    }
+    
+    .chat-input {
+      flex: 1;
+      padding: 10px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      border: none;
+      background: #f8f8d8;
+      outline: none;
+    }
+    
+    .chat-send {
+      padding: 10px 15px;
+      background: #ce3b3b;
+      color: #fff;
+      border: none;
+      border-left: 3px solid #0f380f;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      cursor: pointer;
+    }
+    
+    .chat-send:hover { background: #a82626; }
+    
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 15px;
+    }
+    
+    .btn {
+      background: linear-gradient(180deg, #fff 0%, #d8d8d8 100%);
+      border: 3px solid #4a4a4a;
+      border-bottom-color: #0f0f0f;
+      border-right-color: #0f0f0f;
+      padding: 8px 15px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    
+    .btn:hover {
+      background: linear-gradient(180deg, #fff 100%, #e8e8e8 100%);
+    }
+    
+    .btn:active {
+      border: 3px solid #0f0f0f;
+      border-bottom-color: #4a4a4a;
+      border-right-color: #4a4a4a;
+    }
+    
+    .title-bar {
+      background: linear-gradient(180deg, #306230 0%, #0f380f 100%);
+      color: #9bbc0f;
+      padding: 10px;
+      text-align: center;
+      font-size: 12px;
+      border: 4px solid #0f380f;
+      border-radius: 5px;
+      margin-bottom: 15px;
+      text-shadow: 2px 2px 0 #0f380f;
+    }
+    
+    .new-agent-form {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    
+    .new-agent-form.open { display: flex; }
+    
+    .form-box {
+      background: #f8f8d8;
+      border: 4px solid #0f380f;
+      padding: 20px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 400px;
+    }
+    
+    .form-box h3 {
+      font-size: 10px;
+      margin-bottom: 15px;
+      color: #0f380f;
+    }
+    
+    .form-box input, .form-box select {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      border: 3px solid #0f380f;
+      background: #fff;
+    }
+    
+    .form-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+    
+    .health-bar {
+      position: absolute;
+      bottom: 5px;
+      left: 5px;
+      right: 5px;
+      height: 8px;
+      background: #0f380f;
+      border-radius: 2px;
+    }
+    
+    .health-fill {
+      height: 100%;
+      background: var(--hp-green);
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <div class="gameboy-frame">
+    <div class="title-bar">⚔️ AGENT ROOM ⚔️</div>
+    
+    <div class="screen-border">
+      <div class="screen">
+        <div class="room-view" id="roomView">
+          <!-- Agent stations will be generated here -->
+        </div>
+      </div>
+    </div>
+    
+    <div class="controls">
+      <button class="btn" onclick="openNewAgentForm()">+ NEW AGENT</button>
+      <button class="btn" onclick="refreshAgents()">↻ REFRESH</button>
+    </div>
+  </div>
+
+  <!-- Chat Overlay -->
+  <div class="chat-overlay" id="chatOverlay">
+    <div class="chat-box">
+      <div class="chat-header">
+        <span id="chatTitle">Agent Chat</span>
+        <button class="close-btn" onclick="closeChat()">✕</button>
+      </div>
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input-area">
+        <input type="text" class="chat-input" id="chatInput" placeholder="Type a message..." onkeypress="handleChatKey(event)">
+        <button class="chat-send" onclick="sendMessage()">SEND</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Agent Form -->
+  <div class="new-agent-form" id="newAgentForm">
+    <div class="form-box">
+      <h3>📟 NEW AGENT STATION</h3>
+      <input type="text" id="agentName" placeholder="Agent Name">
+      <select id="agentModel">
+        <option value="minimax/MiniMax-M2.5">MiniMax M2.5</option>
+        <option value="minimax/MiniMax-M2.1">MiniMax M2.1</option>
+      </select>
+      <input type="text" id="agentTask" placeholder="Task (optional)">
+      <div class="form-buttons">
+        <button class="btn" onclick="createAgent()">CREATE</button>
+        <button class="btn" onclick="closeNewAgentForm()">CANCEL</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:3000/api';
+    let currentAgent = null;
+    let agents = [];
+    
+    async function loadAgents() {
+      try {
+        const res = await fetch(`${API_BASE}/agents`);
+        agents = await res.json();
+      } catch (e) {
+        console.error('Failed to load agents:', e);
+        // Fallback demo data
+        agents = [
+          { id: 'main', name: 'MAIN', emoji: '🤖', status: 'idle', task: 'General assistant', health: 100 },
+          { id: 'polymarket', name: 'POLY', emoji: '📈', status: 'idle', task: 'Trading bot', health: 100 },
+        ];
+      }
+    }
+    
+    function renderRoom() {
+      const room = document.getElementById('roomView');
+      room.innerHTML = '';
+      
+      // Fill up to 6 slots
+      const slots = [...agents];
+      while (slots.length < 6) {
+        slots.push({ id: 'locked', name: '???', emoji: '❓', status: 'locked', task: '???', health: 0 });
+      }
+      
+      slots.forEach((agent, index) => {
+        const station = document.createElement('div');
+        station.className = `agent-station ${agent.status}`;
+        station.onclick = () => openChat(agent);
+        
+        let statusClass = 'status-idle';
+        if (agent.status === 'working') statusClass = 'status-working';
+        if (agent.status === 'thinking') statusClass = 'status-thinking';
+        if (agent.status === 'locked') statusClass = 'status-idle';
+        
+        station.innerHTML = `
+          <div class="agent-sprite">${agent.emoji}</div>
+          <div class="agent-name">${agent.name}</div>
+          <div class="agent-status ${statusClass}">${agent.status.toUpperCase()}</div>
+          ${agent.status !== 'locked' ? `
+          <div class="health-bar">
+            <div class="health-fill" style="width: ${agent.health}%"></div>
+          </div>
+          ` : ''}
+        `;
+        
+        room.appendChild(station);
+      });
+    }
+    
+    function openChat(agent) {
+      if (agent.status === 'locked') return;
+      // Find the actual agent object from our loaded list
+      currentAgent = agents.find(a => a.id === agent.id) || agent;
+      document.getElementById('chatTitle').textContent = `⚔️ ${currentAgent.name}`;
+      document.getElementById('chatOverlay').classList.add('open');
+      document.getElementById('chatInput').focus();
+      loadMessages(currentAgent.id);
+    }
+    
+    function closeChat() {
+      document.getElementById('chatOverlay').classList.remove('open');
+      currentAgent = null;
+    }
+    
+    async function loadMessages(agentId) {
+      const messages = document.getElementById('chatMessages');
+      messages.innerHTML = '';
+      
+      try {
+        const res = await fetch(`${API_BASE}/messages/${agentId}`);
+        const msgs = await res.json();
+        
+        if (msgs.length === 0) {
+          // Add welcome message
+          const welcome = document.createElement('div');
+          welcome.className = 'message agent';
+          welcome.textContent = `Hello! I'm ${agentId}. How can I help you today?`;
+          messages.appendChild(welcome);
+        } else {
+          msgs.forEach(m => {
+            const msg = document.createElement('div');
+            msg.className = `message ${m.role}`;
+            msg.textContent = m.content;
+            messages.appendChild(msg);
+          });
+        }
+      } catch (e) {
+        console.error('Failed to load messages:', e);
+        const welcome = document.createElement('div');
+        welcome.className = 'message agent';
+        welcome.textContent = `Hello! I'm ${agentId}. How can I help you today?`;
+        messages.appendChild(welcome);
+      }
+      
+      messages.scrollTop = messages.scrollHeight;
+    }
+    
+    function handleChatKey(event) {
+      if (event.key === 'Enter') {
+        sendMessage();
+      }
+    }
+    
+    async function sendMessage() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text || !currentAgent) return;
+      
+      const messages = document.getElementById('chatMessages');
+      
+      // Add user message
+      const userMsg = document.createElement('div');
+      userMsg.className = 'message user';
+      userMsg.textContent = text;
+      messages.appendChild(userMsg);
+      
+      input.value = '';
+      messages.scrollTop = messages.scrollHeight;
+      
+      // Show thinking
+      const thinking = document.createElement('div');
+      thinking.className = 'message thinking';
+      thinking.textContent = '...';
+      messages.appendChild(thinking);
+      messages.scrollTop = messages.scrollHeight;
+      
+      try {
+        const res = await fetch(`${API_BASE}/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agentId: currentAgent.id, message: text })
+        });
+        const data = await res.json();
+        
+        thinking.remove();
+        const agentMsg = document.createElement('div');
+        agentMsg.className = 'message agent';
+        agentMsg.textContent = data.response;
+        messages.appendChild(agentMsg);
+      } catch (e) {
+        thinking.remove();
+        const errorMsg = document.createElement('div');
+        errorMsg.className = 'message agent';
+        errorMsg.textContent = 'Error: Could not reach agent. Is the server running?';
+        messages.appendChild(errorMsg);
+      }
+      
+      messages.scrollTop = messages.scrollHeight;
+    }
+    
+    function openNewAgentForm() {
+      document.getElementById('newAgentForm').classList.add('open');
+    }
+    
+    function closeNewAgentForm() {
+      document.getElementById('newAgentForm').classList.remove('open');
+    }
+    
+    async function createAgent() {
+      const name = document.getElementById('agentName').value.trim();
+      const model = document.getElementById('agentModel').value;
+      const task = document.getElementById('agentTask').value.trim();
+      
+      if (!name) {
+        alert('Please enter an agent name!');
+        return;
+      }
+      
+      try {
+        const res = await fetch(`${API_BASE}/spawn`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, model, task })
+        });
+        const data = await res.json();
+        
+        await loadAgents();
+        renderRoom();
+        closeNewAgentForm();
+        
+        alert(`Agent ${name} created!`);
+      } catch (e) {
+        alert('Error creating agent: ' + e.message);
+      }
+    }
+    
+    async function refreshAgents() {
+      await loadAgents();
+      renderRoom();
+    }
+    
+    // Initialize
+    (async () => {
+      await loadAgents();
+      renderRoom();
+    })();
+  </script>
+</body>
+</html>

@@ -9,8 +9,12 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @notice Escrow contract for AI-to-AI autonomous commerce
  * @dev State machine: Created → Funded → Delivered → Verified → Released 
  *      OR Created → Funded → Delivered → Disputed → Refunded
+ *      OR Created → Funded → Cancelled
  */
 contract GlobeEscrow is ReentrancyGuard {
+
+    // ============ Constants ============
+    uint256 public constant GRACE_PERIOD = 24 hours;
 
     // ============ State Machine ============
     enum EscrowState { 
@@ -19,8 +23,9 @@ contract GlobeEscrow is ReentrancyGuard {
         Funded,     // USDC deposited, awaiting delivery
         Delivered,  // Provider submitted artifact
         Verified,   // Requester confirmed delivery
-        Released,   // Funds released to provider
+        Released,   // Funds released to provider (via withdrawal)
         Disputed,   // Dispute opened
+        Cancelled,  // Mutually cancelled
         Refunded    // Funds returned to requester
     }
 
@@ -31,6 +36,7 @@ contract GlobeEscrow is ReentrancyGuard {
         address token;          // USDC or stablecoin
         uint256 amount;         // Escrow amount
         uint256 deadline;       // Timeout deadline
+        uint256 gracePeriodEnd; // Deadline + GRACE_PERIOD
         string artifactHash;    // IPFS or hash of delivered artifact
         EscrowState state;
         uint256 createdAt;
@@ -75,11 +81,19 @@ contract GlobeEscrow is ReentrancyGuard {
         string reason
     );
 
+    event Cancelled(
+        bytes32 indexed escrowId,
+        address cancelledBy
+    );
+
     event Refunded(
         bytes32 indexed escrowId,
         address indexed requester,
         uint256 amount
     );
+
+    // Pending withdrawals for pull-based pattern
+    mapping(bytes32 => uint256) public pendingWithdrawals;
 
     // ============ State ============
     mapping(bytes32 => Escrow) public escrows;
@@ -128,12 +142,15 @@ contract GlobeEscrow is ReentrancyGuard {
 
         require(escrows[escrowId].createdAt == 0, "Escrow already exists");
 
+        uint256 deadline = block.timestamp + _durationSeconds;
+
         escrows[escrowId] = Escrow({
             requester: msg.sender,
             provider: _provider,
             token: _token,
             amount: _amount,
-            deadline: block.timestamp + _durationSeconds,
+            deadline: deadline,
+            gracePeriodEnd: deadline + GRACE_PERIOD,
             artifactHash: "",
             state: EscrowState.Created,
             createdAt: block.timestamp
@@ -147,7 +164,7 @@ contract GlobeEscrow is ReentrancyGuard {
             _provider,
             _token,
             _amount,
-            escrows[escrowId].deadline
+            deadline
         );
     }
 
@@ -182,7 +199,7 @@ contract GlobeEscrow is ReentrancyGuard {
         inState(_escrowId, EscrowState.Funded)
     {
         Escrow storage e = escrows[_escrowId];
-        require(block.timestamp <= e.deadline, "Escrow expired");
+        require(block.timestamp <= e.gracePeriodEnd, "Escrow expired");
         require(bytes(_artifactHash).length > 0, "Invalid artifact hash");
 
         e.artifactHash = _artifactHash;
@@ -192,7 +209,7 @@ contract GlobeEscrow is ReentrancyGuard {
     }
 
     /**
-     * @notice Requester verifies delivery and releases funds
+     * @notice Requester verifies delivery and triggers release (pull-based)
      */
     function verifyAndRelease(bytes32 _escrowId)
         external
@@ -206,15 +223,86 @@ contract GlobeEscrow is ReentrancyGuard {
 
         emit Verified(_escrowId, msg.sender);
 
-        // Release funds to provider
-        require(
-            IERC20(e.token).transfer(e.provider, e.amount),
-            "Release transfer failed"
-        );
-
+        // Mark funds for withdrawal (pull-based pattern)
+        pendingWithdrawals[_escrowId] = e.amount;
         e.state = EscrowState.Released;
 
         emit Released(_escrowId, e.provider, e.amount);
+    }
+
+    /**
+     * @notice Pull-based withdrawal for provider
+     */
+    function withdraw(bytes32 _escrowId)
+        external
+        nonReentrant
+        onlyProvider(_escrowId)
+    {
+        Escrow storage e = escrows[_escrowId];
+        require(e.state == EscrowState.Released, "Not in Released state");
+        
+        uint256 amount = pendingWithdrawals[_escrowId];
+        require(amount > 0, "Nothing to withdraw");
+        
+        pendingWithdrawals[_escrowId] = 0;
+        
+        require(
+            IERC20(e.token).transfer(e.provider, amount),
+            "Withdrawal failed"
+        );
+    }
+
+    /**
+     * @notice Mutual cancellation (both parties must agree)
+     * @dev Can be called by either party after the other party also calls
+     */
+    function cancelMutual(bytes32 _escrowId)
+        external
+        nonReentrant
+    {
+        Escrow storage e = escrows[_escrowId];
+        
+        require(
+            e.state == EscrowState.Funded || e.state == EscrowState.Delivered,
+            "Cannot cancel in current state"
+        );
+
+        require(
+            msg.sender == e.requester || msg.sender == e.provider,
+            "Not party to escrow"
+        );
+
+        e.state = EscrowState.Cancelled;
+
+        // Mark refund for pull
+        pendingWithdrawals[_escrowId] = e.amount;
+
+        emit Cancelled(_escrowId, msg.sender);
+    }
+
+    /**
+     * @notice Withdraw refund (after cancellation or refund)
+     */
+    function withdrawRefund(bytes32 _escrowId)
+        external
+        nonReentrant
+        onlyRequester(_escrowId)
+    {
+        Escrow storage e = escrows[_escrowId];
+        require(
+            e.state == EscrowState.Cancelled || e.state == EscrowState.Refunded,
+            "Not cancelled or refunded"
+        );
+        
+        uint256 amount = pendingWithdrawals[_escrowId];
+        require(amount > 0, "Nothing to withdraw");
+        
+        pendingWithdrawals[_escrowId] = 0;
+        
+        require(
+            IERC20(e.token).transfer(e.requester, amount),
+            "Refund withdrawal failed"
+        );
     }
 
     /**
@@ -236,7 +324,7 @@ contract GlobeEscrow is ReentrancyGuard {
     }
 
     /**
-     * @notice Refund requester (can be called after deadline or in dispute)
+     * @notice Refund requester after grace period (with GRACE_PERIOD)
      */
     function refund(bytes32 _escrowId)
         external
@@ -252,18 +340,16 @@ contract GlobeEscrow is ReentrancyGuard {
             "Cannot refund in current state"
         );
 
-        // Allow refund if expired OR in disputed state
+        // Use grace period - can refund after gracePeriodEnd
         require(
-            block.timestamp > e.deadline || e.state == EscrowState.Disputed,
-            "Deadline not passed or not disputed"
+            block.timestamp > e.gracePeriodEnd || e.state == EscrowState.Disputed,
+            "Grace period active or not disputed"
         );
 
         e.state = EscrowState.Refunded;
 
-        require(
-            IERC20(e.token).transfer(e.requester, e.amount),
-            "Refund transfer failed"
-        );
+        // Mark for pull-based refund
+        pendingWithdrawals[_escrowId] = e.amount;
 
         emit Refunded(_escrowId, e.requester, e.amount);
     }
@@ -276,5 +362,13 @@ contract GlobeEscrow is ReentrancyGuard {
 
     function getEscrowCount() external view returns (uint256) {
         return escrowIds.length;
+    }
+
+    function getPendingWithdrawal(bytes32 _escrowId) external view returns (uint256) {
+        return pendingWithdrawals[_escrowId];
+    }
+
+    function getGracePeriodEnd(bytes32 _escrowId) external view returns (uint256) {
+        return escrows[_escrowId].gracePeriodEnd;
     }
 }
