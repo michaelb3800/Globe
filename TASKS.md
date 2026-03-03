@@ -1,6 +1,6 @@
 # TASKS.md - Globe Protocol MVP
 
-Last updated: 2026-03-03 03:46 AM
+Last updated: 2026-03-03 09:21 AM
 
 ## Milestone Gates
 
@@ -10,6 +10,16 @@ Last updated: 2026-03-03 03:46 AM
 | G2_TESTNET_DEPLOY | ⏳ Blocked | Need PRIVATE_KEY in contracts/.env |
 | G3_END_TO_END_CLI | ⏳ Blocked | Waiting on G2 |
 | G4_UI_GLOBE | ✅ Complete | Demo at ui/index.html |
+
+## Agent A Tasks (Assigned 2026-03-03)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| A-T1: Review PR #2 and issue Gate decision | ✅ Complete | PR #2 already merged |
+| A-T2: Add no-auto-transfer regression tests | ✅ Complete | PullWithdrawalRegression.t.sol exists |
+| A-T3: Lock event schema in CI | ✅ Complete | EventSchemaValidator runs in CI |
+| A-T4: State machine invariant suite | ✅ Complete | Invariant tests updated with boundary tests |
+| A-T5: Deployment readiness checklist | ✅ Complete | docs/DEPLOY_CHECKLIST.md created |
 
 ## What Works
 

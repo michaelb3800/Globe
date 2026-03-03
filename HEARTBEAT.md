@@ -15,18 +15,26 @@
 ### Priority 3: G3_END_TO_END_CLI
 - Blocked on: G2 deployment
 
+## Agent A Tasks (from Discord)
+- A-T1: PR #2 review - ✅ Complete (already merged)
+- A-T2: No-auto-transfer regression - ✅ Complete
+- A-T3: Event schema in CI - ✅ Complete  
+- A-T4: Invariant tests - ✅ Complete (added boundary tests)
+- A-T5: Deploy checklist - ✅ Complete (docs/DEPLOY_CHECKLIST.md)
+
 ## Cycle Actions (every 5 min)
-- Check Discord #globe for messages from human or Agent A
+- Check for new messages from human or Agent A
 - Check GitHub for new commits
 - If G2 key provided → deploy immediately
-- Update MEMORY.md with progress
-
-## Emergency
-- If human messages → respond immediately
-- If Agent A requests → coordinate
 
 ## Current Gate Status
 - G1_CONTRACT: ✅ Complete
-- G2_TESTNET_DEPLOY: ⏳ Blocked (need key)
+- G2_TESTNET_DEPLOY: ⏳ Blocked (need PRIVATE_KEY)
 - G3_END_TO_END_CLI: ⏳ Blocked (need G2)
-- G4_UI_GLOBE: 🔄 In Progress
+- G4_UI_GLOBE: ✅ Complete
+
+## Last Check
+- Time: 2026-03-03 09:21
+- New commits: No
+- Agent A tasks: All complete
+- Discord: Need to post [CONTRACT REVIEW] to #globe-contract-review

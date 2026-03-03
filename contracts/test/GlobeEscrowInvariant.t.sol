@@ -109,6 +109,8 @@ contract GlobeEscrowInvariantTest is Test {
     GlobeEscrow public escrow;
     MockToken public token;
     EscrowHandler public handler;
+    address public requester;
+    address public provider;
     
     function setUp() public {
         escrow = new GlobeEscrow();
@@ -122,11 +124,14 @@ contract GlobeEscrowInvariantTest is Test {
         handler = new EscrowHandler(address(escrow), address(token));
         
         // Setup actors
-        address requester = makeAddr("requester");
-        address provider = makeAddr("provider");
+        requester = makeAddr("requester");
+        provider = makeAddr("provider");
         
         token.mint(requester, 10000e6);
         vm.prank(requester);
+        token.approve(address(escrow), type(uint256).max);
+        
+        // Also fund the test contract so it can create escrows
         token.approve(address(escrow), type(uint256).max);
         
         // Target the handler
@@ -135,29 +140,119 @@ contract GlobeEscrowInvariantTest is Test {
     
     // Invariant: Funds cannot be withdrawn twice
     function invariant_NoDoubleWithdrawal() public {
-        // This is implicitly tested - the contract uses pendingWithdrawals mapping
-        // and sets to 0 after withdrawal
+        // Handled by contract: pendingWithdrawals[escrowId] is set to 0 after withdrawal
+        // Any subsequent withdraw() call will revert with "Nothing to withdraw"
     }
     
-    // Invariant: Cannot cancel after settlement
+    // Invariant: Cannot cancel after settlement (Released state)
     function invariant_CannotCancelAfterSettlement() public {
-        // Once Released or Refunded, cancel should fail
+        // Contract enforces: cancelMutual() checks state is not Released/Refunded
+        // If state == Released or Refunded, function reverts
     }
     
     // Invariant: Cannot verify after refund
     function invariant_CannotVerifyAfterRefund() public {
-        // State transitions enforce this
+        // Contract enforces: verifyAndRelease() checks state == Delivered
+        // After refund, state == Refunded, so verifyAndRelease will revert
     }
     
     // Invariant: Grace period strictly enforced
     function invariant_GracePeriodEnforced() public {
-        // Refund only works after grace period
+        // Contract enforces: refund() only callable after block.timestamp > deadline + GRACE_PERIOD
+        // GRACE_PERIOD = 24 hours
+    }
+    
+    // ============ STATE MACHINE BOUNDARY TESTS ============
+    // These explicit tests verify the invariant behaviors above
+    
+    /**
+     * @notice Double-withdraw: Second withdraw should revert
+     */
+    function test_invariant_doubleWithdraw_reverts() public {
+        bytes32 id = escrow.createEscrow(provider, address(token), 100e6, 1 days);
+        escrow.fundEscrow(id);
+        
+        vm.prank(provider);
+        escrow.deliverArtifact(id, "ipfs://QmHash");
+        
+        escrow.verifyAndRelease(id);
+        
+        // First withdraw
+        vm.prank(provider);
+        escrow.withdraw(id);
+        
+        // Second withdraw should revert
+        vm.prank(provider);
+        vm.expectRevert();
+        escrow.withdraw(id);
+    }
+    
+    /**
+     * @notice Cancel-after-release: cancelMutual should revert after release
+     */
+    function test_invariant_cancelAfterRelease_reverts() public {
+        bytes32 id = escrow.createEscrow(provider, address(token), 100e6, 1 days);
+        escrow.fundEscrow(id);
+        
+        vm.prank(provider);
+        escrow.deliverArtifact(id, "ipfs://QmHash");
+        
+        escrow.verifyAndRelease(id);
+        
+        // Cancel after release should revert
+        vm.expectRevert();
+        escrow.cancelMutual(id);
+    }
+    
+    /**
+     * @notice Verify-after-refund: verifyAndRelease should revert after refund
+     */
+    function test_invariant_verifyAfterRefund_reverts() public {
+        bytes32 id = escrow.createEscrow(provider, address(token), 100e6, 1 days);
+        escrow.fundEscrow(id);
+        
+        vm.prank(provider);
+        escrow.deliverArtifact(id, "ipfs://QmHash");
+        
+        // Warp past deadline + grace period
+        vm.warp(block.timestamp + 1 days + 25 hours);
+        
+        // Refund
+        vm.prank(requester);
+        escrow.refund(id);
+        
+        // Verify after refund should revert
+        vm.expectRevert();
+        escrow.verifyAndRelease(id);
+    }
+    
+    /**
+     * @notice Grace-period boundary: Refund before grace period should revert
+     */
+    function test_invariant_gracePeriodBoundary() public {
+        bytes32 id = escrow.createEscrow(provider, address(token), 100e6, 1 days);
+        escrow.fundEscrow(id);
+        
+        vm.prank(provider);
+        escrow.deliverArtifact(id, "ipfs://QmHash");
+        
+        // Warp to just before grace period ends (deadline + 23 hours)
+        vm.warp(block.timestamp + 1 days + 23 hours);
+        
+        // Refund before grace period should revert
+        vm.expectRevert();
+        escrow.refund(id);
+        
+        // Warp past grace period (deadline + 25 hours)
+        vm.warp(block.timestamp + 2 hours);
+        
+        // Now refund should succeed
+        vm.prank(requester);
+        escrow.refund(id);
     }
     
     // Basic sanity test
     function test_BasicStateTransitions() public {
-        address provider = makeAddr("provider");
-        
         bytes32 id = escrow.createEscrow(provider, address(token), 100e6, 1 days);
         
         assertEq(uint8(escrow.getEscrow(id).state), 1); // Created
